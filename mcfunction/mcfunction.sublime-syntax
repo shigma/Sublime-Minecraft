@@ -1,0 +1,352 @@
+%YAML 1.2
+---
+name: MC Function
+file_extensions: 
+  - mcfunction
+
+scope: source.mcfunction
+
+variables:
+  selector_keyword: '[^\s,=\]]+'
+
+contexts:
+  main:
+    - match: ^\s*(\/)
+      captures:
+        1: invalid.illegal.starting-forward-slash.mcfunction
+    - match: ^\s*((#~).*)$
+      captures:
+        1: comment.line.special.mcfunction keyword.other.special-comment.mcfunction
+        2: punctuation.definition.comment.special.mcfunction
+    - match: ^\s*((#).*)$
+      captures:
+        1: comment.line.pound-sign.mcfunction
+        2: punctuation.definition.comment.pound-sign.mcfunction
+    - match: ^\s*(?=\S)
+      push: command
+      with_prototype:
+        - match: (?<=\n)
+          pop: true
+    - include: selector
+    - include: operators
+    - include: data_tag
+    - include: rel_number
+    - include: namespace
+    - include: dot_name
+    - include: blockstate
+    - include: boolean
+    - include: hidden_playername
+  
+  command:
+    - match: \b(\/)?(execute)\b
+      captures:
+        1: punctuation.other.command-start.mcfunction
+        2: variable.function.command.mcfunction
+      set: [command, rel_number, rel_number, rel_number, player]
+    - match: (?<!^)\s*(detect)\b
+      captures:
+        1: variable.function.command.mcfunction
+      set: [command, blockstate_or_data, namespace_name, rel_number, rel_number, rel_number]
+    - match: \b(\/)?(tellraw)\b
+      captures:
+        1: punctuation.other.command-start.mcfunction
+        2: variable.function.command.mcfunction
+      set: [JSON.sublime-syntax, player]
+    - match: \b(\/)?(title)\b
+      captures:
+        1: punctuation.other.command-start.mcfunction
+        2: variable.function.command.mcfunction
+      set: [_title_command_enum, player]
+    - match: \b(\/)?(\S+)\b
+      captures:
+        1: punctuation.other.command-start.mcfunction
+        2: variable.function.command.mcfunction
+      pop: true
+  
+  _title_command_enum:
+    - match: (?<=\s)(?:title|subtitle|actionbar)(?=\s)
+      set: JSON.sublime-syntax
+    - match: (?=\S)
+      pop: true
+  
+  boolean:
+    - match: (?i)(?<=\s)true(?=\s|$)
+      scope: constant.language.boolean.true.mcfunction
+    - match: (?i)(?<=\s)false(?=\s|$)
+      scope: constant.language.boolean.false.mcfunction
+  
+  operators:
+    - match: (?<=\s)=(?=\s|$)
+      scope: keyword.operator.assignment.mcfunction
+    - match: (?<=\s)[+\-*/%]=(?=\s|$)
+      scope: keyword.operator.arithmetic.mcfunction
+    - match: (?<=\s)[<>](?=\s|$)
+      scope: keyword.operator.comparison.mcfunction
+    - match: (?<=\s)><(?=\s|$)
+      scope: keyword.operator.swap.mcfunction
+  
+  dot_name:
+    - match: ([^\s\.]+)(\.)(?=\s|$)
+      captures:
+        1: entity.name.enum.mcfunction
+        2: punctuation.accessor.dot-name.mcfunction
+      pop: true
+    - match: ([^\s\.]+)(\.)
+      captures:
+        1: entity.name.enum.mcfunction
+        2: punctuation.accessor.dot-name.mcfunction
+    - match: (?<=\.)([^\s\.]+)(?=\s|$)
+      captures:
+        1: entity.name.enum.mcfunction
+      pop: true
+  
+  selector:
+    - match: '(?<=\s)((@)[a-z])(\[)'
+      captures:
+        1: entity.name.selector.mcfunction
+        2: punctuation.definition.selector.mcfunction
+        3: punctuation.section.brackets.begin.selector-args.mcfunction
+      set:
+        - meta_scope: meta.selector.mcfunction
+        - match: \]
+          scope: punctuation.section.brackets.end.selector-args.mcfunction
+          pop: true
+        - match: \s
+          scope: invalid.illegal.space-in-selector.mcfunction
+          pop: true
+        - match: ','
+          scope: punctuation.separator.selector.mcfunction
+        - match: '(score_)({{selector_keyword}}?)(_min)?(=)'
+          captures:
+            1: variable.language.selector.score-begin.mcfunction
+            2: variable.other.member.selector.objective.mcfunction
+            3: variable.language.selector.score-min.mcfunction
+            4: punctuation.separator.key-value.selector.mcfunction
+        - match: ({{selector_keyword}})(=)
+          captures:
+            1: variable.language.selector.mcfunction
+            4: punctuation.separator.key-value.selector.mcfunction
+        - match: '[+-]?\d+'
+          scope: constant.numeric.integer.mcfunction
+        - match: '!'
+          scope: keyword.operator.logical.negative.selector.mcfunction
+        - match: "{{selector_keyword}}"
+          scope: string.unquoted.selector.mcfunction
+    - match: '(?<=\s)(@)[a-z]'
+      scope: entity.name.selector.mcfunction
+      captures:
+        1: punctuation.definition.selector.mcfunction
+      pop: true
+  
+  player:
+    - include: selector
+    - include: hidden_playername
+    - match: \S+
+      pop: true
+  
+  hidden_playername:
+    - match: (#)\S+
+      captures:
+        1: keyword.other.hidden-playername.mcfunction
+      pop: true
+  
+  number:
+    - match: (?<=\s)[+-]?(?:\d+)?\.\d+(?=\s|$)
+      scope: constant.numeric.float.mcfunction
+    - match: (?<=\s)[+-]?\d+(?=\s|$)
+      scope: constant.numeric.integer.mcfunction
+      pop: true
+  
+  rel_number:
+    - match: (?<=\s)(~)([+-]?(?:\d+)?\.\d+)(?=\s|$)
+      captures:
+        1: keyword.operator.relative.mcfunction
+        2: constant.numeric.float.mcfunction
+      pop: true
+    - match: (?<=\s)(~)([+-]?\d+)(?=\s|$)
+      captures:
+        1: keyword.operator.relative.mcfunction
+        2: constant.numeric.integer.mcfunction
+      pop: true
+    - match: (?<=\s)~(?=\s|$)
+      scope: keyword.operator.relative.mcfunction
+      pop: true
+    - include: number
+  
+  asterisk:
+    - match: (?<=\s)\*(?=\s|$)
+      scope: constant.other.select-all.mcfunction
+      pop: true
+  
+  blockstate_or_data:
+    - include: number
+    - include: blockstate
+  
+  blockstate:
+    - include: asterisk
+    - match: (?<=\s)default(?=\s|$)
+      scope: variable.language.blockstate.default.mcfunction
+      pop: true
+    - match: (?=[^\s=,]+=)
+      set:
+        - meta_scope: meta.structure.blockstate.mcfunction
+        - match: '([^\s=,]+)(=)([^\s=,]+)(,)'
+          captures:
+            1: variable.language.blockstate.key.mcfunction
+            2: punctuation.separator.key-value.blockstate.mcfunction
+            3: string.unquoted.blockstate.mcfunction
+            4: punctuation.separator.values.blockstate.mcfunction
+        - match: '([^\s=,]+)(=)([^\s=,]+)?'
+          captures:
+            1: variable.language.blockstate.key.mcfunction
+            2: punctuation.separator.key-value.blockstate.mcfunction
+            3: string.unquoted.blockstate.mcfunction
+          pop: true
+        - match: (?=\s)
+          pop: true
+  
+  namespace:
+    - match: ([^\s:]+)(:)
+      captures:
+        1: entity.name.namespace.mcfunction
+        2: punctuation.accessor.namespace.mcfunction
+  
+  namespace_name:
+    - match: (?:([^\s:]+)(:))?(\S+)
+      captures:
+        1: entity.name.namespace.mcfunction
+        2: punctuation.accessor.namespace.mcfunction
+      pop: true
+    
+  data_tag:
+    - match: (?={)
+      push: nbt_compound
+      with_prototype:
+        - match: \n
+          scope: invalid.illegal.unfinished-nbt.mcfunction
+          pop: true
+        - match: (?<=\n)
+          pop: true
+  
+  nbt_compound:
+    - match: \{
+      scope: punctuation.section.braces.begin.compound.nbt.mcfunction
+      set:
+        - meta_scope: meta.braces.compound.nbt.mcfunction
+        - match: \}
+          scope: punctuation.section.braces.end.compound.nbt.mcfunction
+          pop: true
+        - match: (?=\S)
+          push: [_nbt_compound_comma, nbt, _nbt_compound_colon, _nbt_compound_key]
+  _nbt_compound_key:
+    - match: '"'
+      scope: punctuation.definition.string.begin.nbt.mcfunction
+      set:
+        - meta_scope: string.quoted.double.nbt.mcfunction variable.other.nbt-key.mcfunction
+        - match: '"'
+          scope: punctuation.definition.string.end.nbt.mcfunction
+          pop: true
+        - match: \\.
+          scope: constant.character.escape.nbt.mcfunction
+    - match: '[a-zA-Z0-9._+\-]+'
+      scope: string.unquoted.nbt.mcfunction variable.other.nbt-key.mcfunction
+      pop: true
+    - match: \S
+      scope: invalid.illegal.invalid-key.nbt.mcfunction
+  _nbt_compound_colon:
+    - match: ':'
+      scope: punctuation.separator.key-value.compound.mcfunction
+      pop: true
+    - match: \S
+      scope: invalid.illegal.expected-colon.nbt.mcfunction
+  _nbt_compound_comma:
+    - match: ','
+      scope: punctuation.separator.values.compound.mcfunction
+      pop: true
+    - match: (?=})
+      pop: true
+    - match: \S
+      scope: invalid.illegal.expected-comma.nbt.mcfunction
+  nbt_list:
+    - match: (\[)(?:([IBL])(;))?
+      captures:
+        1: punctuation.section.brackets.begin.list.nbt.mcfunction
+        2: storage.modifier.array-type.nbt.mcfunction
+        3: punctuation.separator.array-type.nbt.mcfunction
+      set:
+        - meta_scope: meta.brackets.list.nbt.mcfunction
+        - match: \]
+          scope: punctuation.section.brackets.end.list.nbt.mcfunction
+          pop: true
+        - match: (?=\S)
+          push: [_nbt_list_comma, nbt]
+  _nbt_list_comma:
+    - match: ','
+      scope: punctuation.separator.values.list.mcfunction
+      pop: true
+    - match: (?=])
+      pop: true
+    - match: \S
+      scope: invalid.illegal.expected-comma.nbt.mcfunction
+  nbt_boolean: # Technically a byte, but they look different
+    - match: (?i)\btrue\b
+      scope: constant.numeric.byte.boolean.true.nbt.mcfunction
+      pop: true
+    - match: (?i)\bfalse\b
+      scope: constant.numeric.byte.boolean.false.nbt.mcfunction
+      pop: true
+  nbt_byte:
+    - match: '[+-]?(?:0|[1-9]\d*)[bB]\b(?=[^\.eE])'
+      scope: constant.numeric.byte.nbt.mcfunction
+      pop: true
+    - include: nbt_boolean
+  nbt_short:
+    - match: '[+-]?(?:0|[1-9]\d*)[sS]\b(?=[^\.eE])'
+      scope: constant.numeric.short.nbt.mcfunction
+      pop: true
+  nbt_long:
+    - match: '[+-]?(?:0|[1-9]\d*)[lL]\b(?=[^\.eE])'
+      scope: constant.numeric.long.nbt.mcfunction
+      pop: true
+  nbt_int:
+    - match: '[+-]?(?:0|[1-9]\d*)\b(?=[^\.eE])'
+      scope: constant.numeric.integer.nbt.mcfunction
+      pop: true
+  nbt_float:
+    - match: '[+-]?(?:\d+\.\d+|\.\d+|\d+\.|\d+)(?:[eE][+-]?\d+)?[fF]\b'
+      scope: constant.numeric.float.nbt.mcfunction
+      pop: true
+  nbt_double:
+    - match: '[+-]?(?:\d+\.\d+|\.\d+|\d+\.)(?:[eE][+-]?\d+)?[dD]?\b'
+      scope: constant.numeric.double.nbt.mcfunction
+      pop: true
+    - match: '[+-]?\d+(?:[eE][+-]?\d+[dD]|[dD])?\b'
+      scope: constant.numeric.double.nbt.mcfunction
+      pop: true
+  nbt_number:
+    - include: nbt_byte
+    - include: nbt_short
+    - include: nbt_long
+    - include: nbt_int
+    - include: nbt_float
+    - include: nbt_double
+  nbt_string:
+    - match: '"'
+      scope: punctuation.definition.string.begin.nbt.mcfunction
+      set:
+        - meta_scope: string.quoted.double.nbt.mcfunction
+        - match: '"'
+          scope: punctuation.definition.string.end.nbt.mcfunction
+          pop: true
+        - match: \\.
+          scope: constant.character.escape.nbt.mcfunction
+    - match: '[a-zA-Z0-9._+\-]+'
+      scope: string.unquoted.nbt.mcfunction
+      pop: true
+  nbt:
+    - include: nbt_compound
+    - include: nbt_list
+    - include: nbt_number
+    - include: nbt_string
+    - match: \S
+      scope: invalid.illegal.illegal-character.mcfunction

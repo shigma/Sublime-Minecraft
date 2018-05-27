@@ -1,0 +1,111 @@
+%YAML 1.2
+---
+name: MC Meta (JSON)
+file_extensions: 
+  - mcmeta
+
+scope: source.json.mcmeta
+
+variables:
+  built_in: |-
+    (?x)
+    \b(?:
+      # pack.mcmeta
+      pack|pack_format|description|         # pack
+      language|name|region|bidirectional|   # language
+      
+      # *.png.mcmeta
+      animation|interpolate|frametime|      # animation
+      frames|index|time                     # animation.frames
+      texture|clamp|blur                    # texture
+    )\b
+
+contexts:
+  main:
+    - include: constant
+    - include: string
+    - include: array
+    - include: object
+    - include: comments
+
+  constant:
+    - match: \b(true|false|null)\b
+      scope: constant.language.mcmeta
+    - match: -?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?
+      scope: constant.numeric.mcmeta
+
+  string:
+    - match: '"'
+      scope: punctuation.definition.string.begin.mcmeta
+      push: string-content
+  
+  string-content:
+    - meta_scope: string.quoted.double.mcmeta
+    - match: '"'
+      scope: punctuation.definition.string.end.mcmeta
+      pop: true
+    - match: \\([\\/"bfnrt]|u[0-9a-fA-F]{4})
+      scope: constant.character.escape.mcmeta
+    - match: \\.
+      scope: invalid.illegal.unrecognized-string-escape.mcmeta
+    - match: $\n?
+      scope: invalid.illegal.unclosed-string.mcmeta
+      pop: true
+
+  array:
+    - match: \[
+      scope: punctuation.section.array.begin.mcmeta
+      push:
+        - meta_scope: meta.structure.array.mcmeta
+        - match: \]
+          scope: punctuation.section.array.end.mcmeta
+          pop: true
+        - include: main
+        - match: ","
+          scope: punctuation.separator.array.mcmeta
+        - match: '[^\s\]]'
+          scope: invalid.illegal.expected-array-separator.mcmeta
+  
+  comments:
+    - match: /\*
+      scope: punctuation.definition.comment.mcmeta
+      push:
+        - meta_scope: comment.block.mcmeta
+        - match: \*/
+          pop: true
+    - match: (//).*$\n?
+      scope: comment.line.double-slash.mcmeta
+      captures:
+        1: punctuation.definition.comment.mcmeta
+  
+  object:
+    - match: \{
+      scope: punctuation.section.dictionary.begin.mcmeta
+      push:
+        - meta_scope: meta.structure.dictionary.mcmeta
+        - match: \}
+          scope: punctuation.section.dictionary.end.mcmeta
+          pop: true
+        - include: comments
+
+        - match: '"'
+          scope: punctuation.definition.string.begin.mcmeta
+          push:
+            - meta_scope: meta.structure.dictionary.key.mcmeta string.quoted.double.mcmeta
+            - match: ({{built_in}})(?=")
+              scope: keyword.other.mcmeta
+            - include: string-content
+
+        - match: ':'
+          scope: punctuation.separator.dictionary.key-value.mcmeta
+          push:
+            - meta_scope: meta.structure.dictionary.value.mcmeta
+            - match: '(,)|(?=\})'
+              captures:
+                1: punctuation.separator.dictionary.pair.mcmeta
+              pop: true
+            - include: main
+            - match: '[^\s,]'
+              scope: invalid.illegal.expected-dictionary-separator.mcmeta
+        - match: '[^\s\}]'
+          scope: invalid.illegal.expected-dictionary-separator.mcmeta
