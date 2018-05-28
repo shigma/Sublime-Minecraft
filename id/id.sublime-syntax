@@ -1,0 +1,31 @@
+%YAML 1.2
+---
+name: World ID
+file_extensions: 
+  - id
+
+scope: source.mcid
+
+contexts:
+  main:
+    - match: ^\#
+      scope: comment.line.number-sign.mcid
+      push: 
+        - match: $
+          pop: true
+        - match: (Mon|Tue|Wed|Thu|Fri|Sat|Sun)
+          scope: entity.name.week.mcid
+        - match: (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)
+          scope: entity.name.month.mcid
+        - match: \d+
+          scope: constant.numeric.mcid
+        - match: ':'
+          scope: keyword.other.time.mcid
+        - match: PST
+          scope: entity.name.pst.mcid
+    - match: ^(id)(=)(\d+)$
+      captures:
+        1: keyword.declaration.mcid
+        2: punctuation.definition.mcid
+        3: constant.numeric.world.mcid
+
